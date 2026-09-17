@@ -1,14 +1,21 @@
-SOLICITUD JR DIGITAL — CLUB ATLAS CHAPALITA
+PORTAL DE SOLICITUDES CLUB ATLAS CHAPALITA - V1
 
-Versión móvil basada en el prototipo visual aprobado.
+ARCHIVOS:
+- index.html: nuevo portal principal
+- portal.css: estilos del portal
+- portal.js: catálogo de las 17 solicitudes
+- jr-25-29.html: formulario JR-A actual, conservado
+- styles.css: estilos del formulario JR existente
+- app.js: versión V5 con firma por mouse y dedo
+- atlas-logo.png: logotipo
 
-FUNCIONES
-- 4 pasos: datos generales, datos del hijo(a), términos y firmas.
-- Celular y correo corresponden únicamente al hijo(a) / Asociado JR.
-- Dos firmas táctiles: titular y Asociado(a) JR.
-- Generación y descarga del PDF en el dispositivo.
-- Compatible con celular y computadora.
-- El documento opcional se selecciona localmente; esta versión no lo envía a servidor.
+PARA GITHUB:
+1. Sube/reemplaza TODOS estos archivos en la raíz del repositorio.
+2. index.html reemplaza al index.html actual.
+3. app.js, styles.css y atlas-logo.png se conservan en la raíz.
+4. Se agregan portal.css, portal.js y jr-25-29.html.
+5. Espera a que GitHub Pages publique y usa Ctrl+F5.
 
-USO
-Abra index.html. Para generar el PDF, el navegador necesita acceso a internet para cargar jsPDF desde CDN.
+IMPORTANTE:
+Solo JR-A está habilitada en esta primera versión.
+Los otros 16 formatos ya aparecen en el menú como “Próximamente”.

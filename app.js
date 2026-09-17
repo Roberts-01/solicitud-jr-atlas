@@ -43,45 +43,93 @@ function longDate(v){
 }
 function setupPad(canvas){
   const ctx=canvas.getContext('2d');
-  let drawing=false,hasInk=false,activePointer=null;
+  let drawing=false,hasInk=false,last=null;
+
   canvas.style.touchAction='none';
   canvas.style.userSelect='none';
   canvas.style.webkitUserSelect='none';
+  canvas.style.cursor='crosshair';
 
   function resize(){
-    const data=hasInk?canvas.toDataURL('image/png'):null;
+    const saved=hasInk?canvas.toDataURL('image/png'):null;
     const r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
     canvas.width=Math.max(1,Math.round(r.width*dpr));
     canvas.height=Math.max(1,Math.round(r.height*dpr));
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
-    if(data){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,r.width,r.height);img.src=data}
+    ctx.lineWidth=2.4;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    ctx.strokeStyle='#111';
+    if(saved){
+      const img=new Image();
+      img.onload=()=>ctx.drawImage(img,0,0,r.width,r.height);
+      img.src=saved;
+    }
   }
-  function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-  function start(e){
-    if(e.pointerType==='mouse'&&e.button!==0)return;
-    e.preventDefault();activePointer=e.pointerId;drawing=true;
-    try{canvas.setPointerCapture(e.pointerId)}catch(_){}
-    const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+.01,p.y+.01);ctx.stroke();hasInk=true;
+
+  function point(clientX,clientY){
+    const r=canvas.getBoundingClientRect();
+    return{x:clientX-r.left,y:clientY-r.top};
   }
-  function move(e){
-    if(!drawing||e.pointerId!==activePointer)return;
-    e.preventDefault();const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasInk=true;
+
+  function begin(p){
+    drawing=true;last=p;
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+    ctx.lineTo(p.x+0.01,p.y+0.01);
+    ctx.stroke();
+    hasInk=true;
   }
-  function end(e){
-    if(activePointer!==null&&e.pointerId!==activePointer)return;
-    if(e.cancelable)e.preventDefault();drawing=false;
-    try{canvas.releasePointerCapture(activePointer)}catch(_){}
-    activePointer=null;
+
+  function draw(p){
+    if(!drawing)return;
+    ctx.beginPath();
+    ctx.moveTo(last.x,last.y);
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+    last=p;hasInk=true;
   }
-  canvas.addEventListener('pointerdown',start,{passive:false});
-  canvas.addEventListener('pointermove',move,{passive:false});
-  canvas.addEventListener('pointerup',end,{passive:false});
-  canvas.addEventListener('pointercancel',end,{passive:false});
+
+  function stop(){drawing=false;last=null}
+
+  // Mouse / PC
+  canvas.addEventListener('mousedown',e=>{
+    if(e.button!==0)return;
+    e.preventDefault();
+    begin(point(e.clientX,e.clientY));
+  });
+  canvas.addEventListener('mousemove',e=>{
+    if(!drawing)return;
+    e.preventDefault();
+    draw(point(e.clientX,e.clientY));
+  });
+  window.addEventListener('mouseup',stop);
+
+  // Pantallas táctiles
+  canvas.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    begin(point(t.clientX,t.clientY));
+  },{passive:false});
+  canvas.addEventListener('touchmove',e=>{
+    if(!drawing)return;
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    draw(point(t.clientX,t.clientY));
+  },{passive:false});
+  canvas.addEventListener('touchend',e=>{e.preventDefault();stop()},{passive:false});
+  canvas.addEventListener('touchcancel',stop,{passive:false});
+
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
-  window.addEventListener('resize',resize);resize();
+  window.addEventListener('resize',resize);
+  resize();
+
   return{
-    clear(){const r=canvas.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);hasInk=false},
+    clear(){
+      const r=canvas.getBoundingClientRect();
+      ctx.clearRect(0,0,r.width,r.height);
+      hasInk=false;stop();
+    },
     hasInk:()=>hasInk,
     data:()=>canvas.toDataURL('image/png')
   };
