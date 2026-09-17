@@ -5,7 +5,7 @@ const catalog={
       ['SOLICITUD JR-A CHAPALITA','Solicitud digital disponible','jr-25-29.html',true],
       ['SOLICITUD JR-A SENIOR CHAPALITA','Solicitud digital disponible','jr-a-senior.html',true],
       ['SOLICITUD JR-B CHAPALITA','Solicitud digital disponible','jr-b.html',true],
-      ['SOLICITUD JR-B SENIOR CHAPALITA','Próximamente','#',false],
+      ['SOLICITUD JR-B SENIOR CHAPALITA','Solicitud digital disponible','jr-b-senior.html',true],
       ['SOLICITUD JR-C CHAPALITA','Próximamente','#',false],
       ['SOLICITUD JR-C SENIOR CHAPALITA','Próximamente','#',false],
       ['SOLICITUD JR-CASADO HASTA 40 AÑOS CHAPALITA','Próximamente','#',false],
