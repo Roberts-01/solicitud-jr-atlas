@@ -3,7 +3,7 @@ const catalog={
     title:'Asociados JR',
     items:[
       ['SOLICITUD JR-A CHAPALITA','Solicitud digital disponible','jr-25-29.html',true],
-      ['SOLICITUD JR-A SENIOR CHAPALITA','Próximamente','#',false],
+      ['SOLICITUD JR-A SENIOR CHAPALITA','Solicitud digital disponible','jr-a-senior.html',true],
       ['SOLICITUD JR-B CHAPALITA','Próximamente','#',false],
       ['SOLICITUD JR-B SENIOR CHAPALITA','Próximamente','#',false],
       ['SOLICITUD JR-C CHAPALITA','Próximamente','#',false],
