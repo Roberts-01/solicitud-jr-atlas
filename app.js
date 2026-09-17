@@ -42,20 +42,49 @@ function longDate(v){
   return{d:String(+d),m:meses[+m-1],y};
 }
 function setupPad(canvas){
-  const ctx=canvas.getContext('2d');let drawing=false,hasInk=false;
+  const ctx=canvas.getContext('2d');
+  let drawing=false,hasInk=false,activePointer=null;
+  canvas.style.touchAction='none';
+  canvas.style.userSelect='none';
+  canvas.style.webkitUserSelect='none';
+
   function resize(){
-    const data=hasInk?canvas.toDataURL():null,r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-    canvas.width=r.width*dpr;canvas.height=r.height*dpr;
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.lineWidth=2.2;ctx.lineCap='round';ctx.strokeStyle='#111';
+    const data=hasInk?canvas.toDataURL('image/png'):null;
+    const r=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+    canvas.width=Math.max(1,Math.round(r.width*dpr));
+    canvas.height=Math.max(1,Math.round(r.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
     if(data){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,r.width,r.height);img.src=data}
   }
-  function pos(e){const r=canvas.getBoundingClientRect(),p=e.touches?e.touches[0]:e;return{x:p.clientX-r.left,y:p.clientY-r.top}}
-  function start(e){e.preventDefault();drawing=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)}
-  function move(e){if(!drawing)return;e.preventDefault();const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasInk=true}
-  function end(){drawing=false}
-  canvas.addEventListener('pointerdown',start);canvas.addEventListener('pointermove',move);window.addEventListener('pointerup',end);window.addEventListener('resize',resize);
-  resize();
-  return{clear(){ctx.clearRect(0,0,canvas.width,canvas.height);hasInk=false},hasInk:()=>hasInk,data:()=>canvas.toDataURL('image/png')};
+  function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+  function start(e){
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    e.preventDefault();activePointer=e.pointerId;drawing=true;
+    try{canvas.setPointerCapture(e.pointerId)}catch(_){}
+    const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+.01,p.y+.01);ctx.stroke();hasInk=true;
+  }
+  function move(e){
+    if(!drawing||e.pointerId!==activePointer)return;
+    e.preventDefault();const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();hasInk=true;
+  }
+  function end(e){
+    if(activePointer!==null&&e.pointerId!==activePointer)return;
+    if(e.cancelable)e.preventDefault();drawing=false;
+    try{canvas.releasePointerCapture(activePointer)}catch(_){}
+    activePointer=null;
+  }
+  canvas.addEventListener('pointerdown',start,{passive:false});
+  canvas.addEventListener('pointermove',move,{passive:false});
+  canvas.addEventListener('pointerup',end,{passive:false});
+  canvas.addEventListener('pointercancel',end,{passive:false});
+  canvas.addEventListener('contextmenu',e=>e.preventDefault());
+  window.addEventListener('resize',resize);resize();
+  return{
+    clear(){const r=canvas.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);hasInk=false},
+    hasInk:()=>hasInk,
+    data:()=>canvas.toDataURL('image/png')
+  };
 }
 const pads={firmaTitular:setupPad($('#firmaTitular')),firmaHijo:setupPad($('#firmaHijo'))};
 $$('[data-clear]').forEach(b=>b.onclick=()=>pads[b.dataset.clear].clear());
@@ -94,12 +123,7 @@ async function generatePDF(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'letter'}),W=216;
   const logo=await logoData();
-  if(logo){
-    const props=doc.getImageProperties(logo);
-    const logoW=24;
-    const logoH=logoW*props.height/props.width;
-    doc.addImage(logo,'PNG',15,14,logoW,logoH);
-  }
+  if(logo)doc.addImage(logo,'PNG',15,17,27,25);
 
   doc.setTextColor(0);
   doc.setFont('helvetica','bold');doc.setFontSize(13.5);
@@ -118,53 +142,33 @@ async function generatePDF(){
   doc.text('No.',174,76);doc.text(cert,184,76);doc.line(183,77,204,77);
 
   let y=83;
-  // Primera parte con campos subrayados, como en la solicitud impresa.
-  doc.setFont('helvetica','normal');doc.setFontSize(10.2);
-  const x0=15;
-  const t1='Solicito sea admitido(a) mi hijo(a) ';
-  doc.text(t1,x0,y);
-  let x=x0+doc.getTextWidth(t1);
-  const nameW=Math.min(72,Math.max(48,doc.getTextWidth(hijo)+3));
-  doc.text(hijo,x+1,y);
-  doc.line(x,y+1,x+nameW,y+1);
-  x+=nameW+2;
-  const t2=', quien nació el día ';
-  doc.text(t2,x,y);
-  x+=doc.getTextWidth(t2);
-  const dateW=24;
-  doc.text(nac,x+1,y);
-  doc.line(x,y+1,x+dateW,y+1);
-  y+=6;
-  const p1rest='en la Categoría de “ASOCIADO JR” y como tal continúe haciendo uso de las instalaciones del CLUB ATLAS CHAPALITA, en tanto no cumpla los 30 años y permanezca soltero(a).';
-  const restLines=doc.splitTextToSize(p1rest,186);
-  doc.text(restLines,15,y);
-  y+=restLines.length*5.05+3.2;
+  const p1=`Solicito sea admitido(a) mi hijo(a) ${hijo}, quien nació el día ${nac}, en la Categoría de “ASOCIADO JR” y como tal continúe haciendo uso de las instalaciones del CLUB ATLAS CHAPALITA, en tanto no cumpla los 30 años y permanezca soltero(a).`;
   const p2='Al mismo tiempo, acepto que la cuota para asociado JUNIOR, que para este caso es del 15% (Quince) de la mensualidad vigente, sea incluida automáticamente en mi estado de cuenta, en la inteligencia que tengo el derecho en cualquier momento de renunciar a esta categoría, mediante simple aviso por escrito al CLUB y/o entrega de credencial de asociado, por ende se dejará de cobrar a partir del siguiente mes.';
   const p3=`Reconozco que mi hijo(a) ${hijo} tiene los mismos derechos y obligaciones para el CLUB ATLAS CHAPALITA como cualquier descendiente, y por lo tanto la calidad como asociado está condicionada a la tenencia a mi nombre del certificado de aportación del que se desprende su condición. En caso de cancelación o enajenación a terceros del certificado, se extinguirá la calidad de “ASOCIADO(A) JR” que de dicho certificado se desprende.`;
   const p4='Por otra parte, me obligo para con el CLUB ATLAS CHAPALITA, que en el momento en que mi hijo(a) cambie de estado civil, lo comunicaré por escrito al club, en un periodo no mayor a 30 días naturales posteriores al matrimonio; de lo contrario acepto que perderá su calidad de “ASOCIADO(A) JR” y con ello sus derechos.';
   const p5='Las anteriores manifestaciones son bajo formal protesta de decir verdad, así como las que posteriormente se hagan relacionadas con el asunto motivo de la presente.';
 
+  y=addParagraph(doc,p1,y);
   y=addParagraph(doc,p2,y,13);
   y=addParagraph(doc,p3,y,13);
   y=addParagraph(doc,p4,y,13);
   y=addParagraph(doc,p5,y,13);
 
-  const sigY=Math.max(y+3,218);
-  // Las firmas quedan dentro del espacio superior y nunca sobre las etiquetas.
-  doc.addImage(pads.firmaTitular.data(),'PNG',18,sigY-15,42,12);
-  doc.addImage(pads.firmaHijo.data(),'PNG',78,sigY-15,42,12);
+  const sigY=Math.max(y+1,218);
+  doc.addImage(pads.firmaTitular.data(),'PNG',18,sigY-10,44,15);
+  doc.addImage(pads.firmaHijo.data(),'PNG',77,sigY-10,44,15);
   doc.setLineWidth(.25);
-  doc.line(15,sigY,63,sigY);
-  doc.line(74,sigY,123,sigY);
-  doc.line(146,sigY,197,sigY);
-  doc.setFont('helvetica','normal');doc.setFontSize(9.6);
-  doc.text('TITULAR',39,sigY+5,{align:'center'});
-  doc.text('ASOCIADO(A) JR',98.5,sigY+5,{align:'center'});
-  doc.text('CLUB ATLAS CHAPALITA',171.5,sigY+5,{align:'center'});
+  doc.line(15,sigY+7,63,sigY+7);
+  doc.line(74,sigY+7,123,sigY+7);
+  doc.line(146,sigY+7,197,sigY+7);
+  doc.setFontSize(10);
+  doc.text('TITULAR',39,sigY-1,{align:'center'});
+  doc.text('ASOCIADO(A) JR',98.5,sigY-1,{align:'center'});
+  doc.text('CLUB ATLAS CHAPALITA',171.5,sigY-1,{align:'center'});
 
-  doc.setFontSize(9.8);
-  doc.text('Celular',18,sigY+19);doc.text($('#celular').value.trim(),36,sigY+19);doc.line(34,sigY+20,116,sigY+20);
-  doc.text('Correo electrónico',18,sigY+29);doc.text($('#correo').value.trim(),52,sigY+29);doc.line(50,sigY+30,116,sigY+30);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.8);
+  doc.text('Celular',18,sigY+24);doc.text($('#celular').value.trim(),36,sigY+24);doc.line(34,sigY+25,116,sigY+25);
+  doc.text('Correo electrónico',18,sigY+34);doc.text($('#correo').value.trim(),52,sigY+34);doc.line(50,sigY+35,116,sigY+35);
 
   const safe=hijo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]+/g,'_');
   doc.save(`Solicitud_JR_${safe||'Asociado'}.pdf`);
